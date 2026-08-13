@@ -1,0 +1,38 @@
+import { z } from "zod";
+import { optionalUuid, requiredUuid } from "./uuid";
+
+const optionalText = z.string().trim().max(5_000).optional().transform((value) => value || null);
+const optionalDate = z.preprocess((value) => typeof value === "string" && value.trim() === "" ? null : value, z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional());
+const optionalNumber = z.preprocess((value) => typeof value === "string" && value.trim() === "" ? null : value, z.coerce.number().finite().nullable().optional());
+const optionalDateTime = z.preprocess((value) => typeof value === "string" && value.trim() === "" ? null : value, z.string().datetime().nullable().optional());
+const optionalUuidList = (field: string) => z.preprocess((value) => {
+  if (value == null || value === "") return [];
+  if (Array.isArray(value)) return value.filter((entry) => typeof entry !== "string" || entry.trim() !== "");
+  return [value];
+}, z.array(z.string().uuid(`${field} must contain only UUIDs from authorized records.`)).max(50, `${field} can include at most 50 records.`)).transform((value) => [...new Set(value)]);
+const tags = z.preprocess((value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") return value.split(",");
+  return [];
+}, z.array(z.string().trim().min(1, "Tags cannot be blank.").max(80, "Tags must be 80 characters or fewer.")).max(25, "Tags can include at most 25 values.")).transform((value) => [...new Set(value.map((tag) => tag.trim()).filter(Boolean))]);
+const optionalEmail = z.string().trim().email("Email must be valid.").optional().or(z.literal("")).transform((value) => value || null);
+
+export const personSchema = z.object({ first_name: z.string().trim().min(1).max(120), middle_name: optionalText, last_name: z.string().trim().min(1).max(120), display_name: optionalText, email: z.string().trim().email().optional().or(z.literal("")).transform((value) => value || null), phone: optionalText, status: z.string().trim().min(1).max(64), type_or_role: optionalText, specialty: optionalText, workspace_id: optionalUuid("Workspace"), notes: optionalText, start_date: optionalDate, end_date: optionalDate });
+const clientFields = { name: z.string().trim().min(1).max(240), legal_name: optionalText, status: z.string().trim().min(1).max(64), client_type: optionalText, email: optionalEmail, phone: optionalText, address_line_1: optionalText, address_line_2: optionalText, city: optionalText, state_region: optionalText, postal_code: optionalText, start_date: optionalDate, end_date: optionalDate, referral_source: optionalText, owner_id: optionalUuid("Owner"), workspace_id: optionalUuid("Workspace"), tags, notes: optionalText };
+export const clientSchema = z.object(clientFields).superRefine((value, context) => { if (value.start_date && value.end_date && value.end_date < value.start_date) context.addIssue({ code: z.ZodIssueCode.custom, path: ["end_date"], message: "End date must be on or after start date." }); });
+const primaryContactSchema = z.object({ id: optionalUuid("Primary contact"), name: optionalText, email: optionalEmail, phone: optionalText }).superRefine((value, context) => {
+  if ((value.email || value.phone) && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Primary contact name is required when contact details are entered." });
+});
+export const clientManagementSchema = z.object({ ...clientFields, primary_contact: primaryContactSchema, provider_ids: optionalUuidList("Assigned providers"), clinician_ids: optionalUuidList("Assigned clinicians") }).superRefine((value, context) => {
+  if (value.start_date && value.end_date && value.end_date < value.start_date) context.addIssue({ code: z.ZodIssueCode.custom, path: ["end_date"], message: "End date must be on or after start date." });
+});
+export const clientContactSchema = z.object({ client_id: requiredUuid("Client"), first_name: z.string().trim().min(1).max(120), last_name: z.string().trim().min(1).max(120), title: optionalText, email: z.string().trim().email().optional().or(z.literal("")).transform((value) => value || null), phone: optionalText, is_primary: z.coerce.boolean().default(false), notes: optionalText });
+export const credentialSchema = z.object({ credential_type: z.string().trim().min(1).max(160), credential_number: optionalText, issuing_authority: optionalText, issue_date: optionalDate, expiration_date: optionalDate, status: z.string().trim().min(1).max(64), renewal_status: optionalText, notes: optionalText, provider_id: optionalUuid("Provider"), clinician_id: optionalUuid("Clinician") }).refine((value) => Boolean(value.provider_id) !== Boolean(value.clinician_id), "Select exactly one provider or clinician.");
+export const invoiceSchema = z.object({ client_id: requiredUuid("Client"), workspace_id: optionalUuid("Workspace"), invoice_number: z.string().trim().min(1).max(120), billing_period_start: optionalDate, billing_period_end: optionalDate, issue_date: optionalDate, due_date: optionalDate, adjustments: z.coerce.number().finite(), notes: optionalText });
+export const billableRecordSchema = z.object({ client_id: requiredUuid("Client"), workspace_id: optionalUuid("Workspace"), provider_id: optionalUuid("Provider"), clinician_id: optionalUuid("Clinician"), invoice_id: optionalUuid("Invoice"), service_date: optionalDate, description: z.string().trim().min(1).max(1_000), quantity: optionalNumber, unit_amount: optionalNumber, status: z.string().trim().min(1).max(64), notes: optionalText }).refine((value) => !(value.provider_id && value.clinician_id), "A billable record may reference a provider or clinician, not both.");
+export const invoiceLineSchema = z.object({ invoice_id: requiredUuid("Invoice"), description: z.string().trim().min(1).max(1_000), quantity: z.coerce.number().nonnegative(), unit_amount: z.coerce.number().nonnegative(), billable_record_id: optionalUuid("Billable record") });
+export const payrollRecordSchema = z.object({ pay_period_id: requiredUuid("Pay period"), provider_id: optionalUuid("Provider"), clinician_id: optionalUuid("Clinician"), gross_input_amount: optionalNumber, adjustments: z.coerce.number().finite(), approved_amount: optionalNumber, notes: optionalText }).refine((value) => Boolean(value.provider_id) !== Boolean(value.clinician_id), "Select exactly one provider or clinician.");
+export const payrollItemSchema = z.object({ payroll_record_id: requiredUuid("Payroll record"), description: z.string().trim().min(1).max(1_000), item_type: z.string().trim().min(1).max(64), quantity: optionalNumber, rate: optionalNumber, amount: z.coerce.number().finite(), is_adjustment: z.coerce.boolean().default(false), memo: optionalText });
+export const activitySchema = z.object({ workspace_id: optionalUuid("Workspace"), subject_type: z.string().trim().min(1).max(80), subject_id: requiredUuid("Activity subject"), activity_type: z.string().trim().min(1).max(80), title: z.string().trim().min(1).max(500), body: optionalText, due_at: optionalDateTime, completed_at: optionalDateTime, assigned_to: optionalUuid("Assignee") });
+export const paymentSchema = z.object({ client_id: requiredUuid("Client"), invoice_id: requiredUuid("Invoice"), amount: z.coerce.number().positive(), payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), payment_method: optionalText, reference: optionalText, status: z.enum(["pending","succeeded","failed","void"]), notes: optionalText });
+export const payPeriodSchema = z.object({ workspace_id: optionalUuid("Workspace"), start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), notes: optionalText }).refine((value) => value.end_date >= value.start_date, "End date must be on or after start date.");

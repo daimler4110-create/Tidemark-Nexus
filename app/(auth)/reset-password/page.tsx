@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react"; import { createClient } from "@/lib/supabase/client";
+export default function Reset(){const [email,setEmail]=useState('');const [sent,setSent]=useState(false);async function submit(e:React.FormEvent){e.preventDefault();await createClient().auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/auth/callback?next=/`});setSent(true)}return <main className="shell" style={{maxWidth:420}}><div className="card"><h1>Reset password</h1>{sent?<p>Check your inbox for a secure reset link.</p>:<form onSubmit={submit}><label className="field">Email<input type="email" required onChange={e=>setEmail(e.target.value)}/></label><button className="btn">Send reset link</button></form>}</div></main>}

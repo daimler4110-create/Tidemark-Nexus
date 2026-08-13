@@ -1,0 +1,2 @@
+import { describe, expect, it } from 'vitest'; import { workspaceSchema } from '../../lib/validation/workspace';
+describe('workspace validation',()=>{it('accepts a safe dynamic workspace',()=>expect(workspaceSchema.safeParse({name:'Operations',slug:'operations'}).success).toBe(true));it('rejects unsafe slugs',()=>expect(workspaceSchema.safeParse({name:'Operations',slug:'Operations Space'}).success).toBe(false));});

@@ -1,0 +1,5 @@
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getGrantedPermissionKeys } from "@/lib/authz/context";
+import { AutomationCenter } from "@/components/automation/automation-center";
+export default async function AutomationPage({ params, searchParams }: { params: Promise<{ companySlug: string }>; searchParams: Promise<{ tab?: string }> }) { const { companySlug } = await params; const { tab } = await searchParams; if (companySlug !== "tidemark-va") notFound(); const supabase = await createClient(); const { data: company } = await supabase.from("companies").select("id").eq("slug", companySlug).maybeSingle(); if (!company) notFound(); const permissions = await getGrantedPermissionKeys(company.id); if (!permissions.includes("automation.read")) notFound(); return <AutomationCenter companyId={company.id} canManage={permissions.includes("automation.manage")} canReview={permissions.includes("communications.review")} canRequestAi={permissions.includes("ai.request")} initialTab={tab}/>; }

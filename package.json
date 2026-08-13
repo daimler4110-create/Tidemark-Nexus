@@ -1,0 +1,39 @@
+{
+  "name": "tidemark-nexus",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests/unit tests/authz",
+    "provision:global-admin": "node scripts/provision-global-admin.mjs",
+    "provision:global-admins": "node scripts/provision-global-admin.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@next/swc-wasm-nodejs": "^16.3.0",
+    "@next/swc-win32-x64-msvc": "^16.3.0",
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^16.0.0",
+    "supabase": "^2.113.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  }
+}

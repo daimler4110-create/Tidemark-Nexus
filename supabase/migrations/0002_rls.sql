@@ -1,0 +1,24 @@
+alter table public.companies enable row level security;
+alter table public.profiles enable row level security;
+alter table public.roles enable row level security;
+alter table public.permissions enable row level security;
+alter table public.role_permissions enable row level security;
+alter table public.workspaces enable row level security;
+alter table public.memberships enable row level security;
+alter table public.company_modules enable row level security;
+alter table public.invitations enable row level security;
+alter table public.audit_logs enable row level security;
+
+create policy companies_read on public.companies for select to authenticated using (id in (select public.current_user_company_ids()));
+create policy profiles_self_read on public.profiles for select to authenticated using (id=auth.uid() or exists(select 1 from memberships m where m.user_id=profiles.id and m.company_id in (select public.current_user_company_ids())));
+create policy workspaces_read on public.workspaces for select to authenticated using (company_id in (select public.current_user_company_ids()) and archived_at is null);
+create policy workspaces_manage on public.workspaces for all to authenticated using (public.has_permission(company_id,'workspace.manage')) with check (public.has_permission(company_id,'workspace.manage'));
+create policy memberships_read on public.memberships for select to authenticated using (user_id=auth.uid() or company_id in (select public.current_user_company_ids()));
+create policy memberships_manage on public.memberships for all to authenticated using (public.has_permission(company_id,'users.invite')) with check (public.has_permission(company_id,'users.invite'));
+create policy roles_read on public.roles for select to authenticated using (company_id is null or company_id in (select public.current_user_company_ids()));
+create policy permissions_read on public.permissions for select to authenticated using (true);
+create policy role_permissions_read on public.role_permissions for select to authenticated using (true);
+create policy modules_read on public.company_modules for select to authenticated using (company_id in (select public.current_user_company_ids()));
+create policy modules_manage on public.company_modules for all to authenticated using (public.has_permission(company_id,'workspace.manage')) with check (public.has_permission(company_id,'workspace.manage'));
+create policy invitations_manage on public.invitations for all to authenticated using (public.has_permission(company_id,'users.invite')) with check (public.has_permission(company_id,'users.invite'));
+create policy audit_read on public.audit_logs for select to authenticated using (public.has_permission(company_id,'audit_logs.view'));

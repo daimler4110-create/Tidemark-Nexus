@@ -1,0 +1,5 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+export default function Login(){const router=useRouter();const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [error,setError]=useState('');async function submit(e:React.FormEvent){e.preventDefault();const {error}=await createClient().auth.signInWithPassword({email,password});if(error)setError(error.message);else router.push('/');} return <main className="shell" style={{maxWidth:420}}><div className="card"><h1>Tidemark Nexus</h1><p className="muted">Sign in with your authorized account.</p><form onSubmit={submit}><label className="field">Email<input type="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label className="field">Password<input type="password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p role="alert">{error}</p>}<button className="btn">Sign in</button></form><p><a href="/reset-password">Reset password</a> · <a href="/accept-invite">Accept an invitation</a></p></div></main>}
